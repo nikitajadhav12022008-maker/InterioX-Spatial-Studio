@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>InterioX Spatial Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- ============ HEADER ============ -->
+<header class="surface flex items-center justify-between gap-3 px-4 md:px-6 py-2.5 sticky top-0 z-30" style="border-width:0 0 1px 0; padding-top: calc(0.625rem + env(safe-area-inset-top,0px));">
+  <div class="flex items-center gap-2.5">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1.5" y="1.5" width="23" height="23" rx="4" stroke="var(--blue)" stroke-width="1.6"/>
+      <path d="M7 18V8h6.5a3.5 3.5 0 0 1 0 7H7" stroke="var(--blue)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="18.5" cy="18" r="1.6" fill="var(--amber)"/>
+    </svg>
+    <div class="leading-none">
+      <div class="font-display text-[1.05rem] tracking-tight">InterioX <span style="color:var(--blue)">Spatial Studio</span></div>
+      <div class="text-[.66rem] font-mono uppercase tracking-wide" style="color:var(--ink-soft); letter-spacing:.06em">Plan · Simulate · Furnish</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <span id="overlap-badge" class="badge-overlap" data-show="false">⚠ Overlapping Detected!</span>
+    <span id="clear-badge" class="badge-clear">✓ Layout Clear</span>
+  </div>
+  <div class="flex items-center gap-2">
+    <button id="help-btn" class="btn btn-ghost" title="Help & shortcuts" aria-label="Help">?</button>
+    <button id="theme-toggle" class="btn btn-ghost" title="Toggle light / dark" aria-label="Toggle theme"><span id="theme-icon">🌙</span></button>
+    <div id="auth-area" class="flex items-center gap-2"></div>
+  </div>
+</header>
+
+<!-- ============ AUTH DIALOG ============ -->
+<dialog id="auth-dialog">
+  <div class="surface rounded-2xl p-6 w-[23rem] max-w-[90vw]">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display text-lg">Welcome to InterioX</h2>
+      <button class="btn btn-ghost" onclick="document.getElementById('auth-dialog').close()" aria-label="Close">✕</button>
+    </div>
+    <div class="flex gap-1.5 mb-4">
+      <div id="auth-method-otp" class="chip" data-active="true">📱 Mobile OTP</div>
+      <div id="auth-method-password" class="chip" data-active="false">✉️ Email &amp; Password</div>
+    </div>
+
+    <!-- OTP FLOW -->
+    <div id="auth-otp-flow">
+      <div id="auth-step-mobile">
+        <p class="text-xs mb-3" style="color:var(--ink-soft)">We will text you a 6-digit code — two-step verification, no password to remember.</p>
+        <div class="flex gap-2 mb-3">
+          <select id="auth-country" class="w-24 shrink-0">
+            <option value="+91">🇮🇳 +91</option><option value="+1">🇺🇸 +1</option><option value="+44">🇬🇧 +44</option>
+            <option value="+61">🇦🇺 +61</option><option value="+971">🇦🇪 +971</option><option value="+65">🇸🇬 +65</option>
+          </select>
+          <input id="auth-mobile" type="text" inputmode="numeric" placeholder="98765 43210"/>
+        </div>
+        <p id="auth-mobile-error" class="text-xs mb-2 hidden" style="color:var(--danger)"></p>
+        <button id="auth-send-otp" class="btn btn-primary w-full justify-center">Send verification code</button>
+      </div>
+      <div id="auth-step-otp" class="hidden">
+        <p class="text-xs mb-1" style="color:var(--ink-soft)">Enter the 6-digit code sent to <span id="auth-mobile-display" class="font-mono"></span></p>
+        <button id="auth-change-number" class="text-xs underline mb-3" style="color:var(--blue)">Change number</button>
+        <div id="auth-demo-otp-banner" class="text-xs rounded-lg p-2.5 mb-3 hidden" style="background:var(--line-soft)"></div>
+        <input id="auth-otp" type="text" inputmode="numeric" maxlength="6" placeholder="000000" class="text-center font-mono text-xl mb-2" style="letter-spacing:0.5em"/>
+        <p id="auth-otp-error" class="text-xs mb-2 hidden" style="color:var(--danger)"></p>
+        <button id="auth-verify-otp" class="btn btn-primary w-full justify-center mb-2">Verify &amp; continue</button>
+        <button id="auth-resend-otp" class="btn btn-ghost w-full justify-center text-xs">Resend code</button>
+      </div>
+      <div id="auth-step-name" class="hidden">
+        <p class="text-xs mb-3" style="color:var(--ink-soft)">Verified ✓ — what should we call you?</p>
+        <input id="auth-name" type="text" placeholder="Jordan Reyes" class="mb-3"/>
+        <button id="auth-finish" class="btn btn-primary w-full justify-center">Start designing</button>
+      </div>
+    </div>
+
+    <!-- EMAIL/PASSWORD FLOW -->
+    <div id="auth-password-flow" class="hidden">
+      <div class="flex gap-1.5 mb-3">
+        <div id="pw-mode-login" class="chip" data-active="true">Log in</div>
+        <div id="pw-mode-signup" class="chip" data-active="false">Sign up</div>
+      </div>
+      <div id="pw-name-wrap" class="mb-2 hidden">
+        <label class="text-xs font-semibold" style="color:var(--ink-soft)">Full name</label>
+        <input id="pw-name" type="text" placeholder="Jordan Reyes" class="mt-1"/>
+      </div>
+      <div class="mb-2">
+        <label class="text-xs font-semibold" style="color:var(--ink-soft)">Email</label>
+        <input id="pw-email" type="email" placeholder="you@example.com" class="mt-1"/>
+      </div>
+      <div class="mb-2">
+        <label class="text-xs font-semibold" style="color:var(--ink-soft)">Password</label>
+        <input id="pw-password" type="password" placeholder="••••••••" class="mt-1"/>
+      </div>
+      <p id="pw-error" class="text-xs mb-2 hidden" style="color:var(--danger)"></p>
+      <button id="pw-submit" class="btn btn-primary w-full justify-center">Log in</button>
+    </div>
+
+    <p class="text-[.68rem] text-center mt-4" style="color:var(--ink-soft)">Demo authentication, stored only in this browser. The backend starter kit ships real OTP (Twilio-ready) and password-hash endpoints.</p>
+  </div>
+</dialog>
+
+<!-- ============ MAIN LAYOUT ============ -->
+<div class="flex-1 flex flex-col lg:flex-row min-h-0">
+
+  <!-- CATALOG SIDEBAR -->
+  <aside class="surface lg:w-[19rem] shrink-0 flex flex-col" style="border-width:0 1px 0 0; max-height: calc(100vh - 52px);">
+    <div class="p-3.5" style="border-bottom:1px solid var(--line)">
+      <h2 class="font-display text-sm tracking-tight mb-2">Catalog</h2>
+      <div class="mb-2">
+        <div class="text-[.66rem] font-semibold uppercase tracking-wide mb-1" style="color:var(--ink-soft)">Room space</div>
+        <div id="room-filters" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div>
+        <div class="text-[.66rem] font-semibold uppercase tracking-wide mb-1" style="color:var(--ink-soft)">Category</div>
+        <div id="cat-filters" class="flex flex-wrap gap-1.5"></div>
+      </div>
+    </div>
+    <div id="catalog-list" class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2"></div>
+    <div class="p-3 text-[.7rem] font-mono" style="border-top:1px solid var(--line); color:var(--ink-soft)">Drag an item onto the plan to place it →</div>
+  </aside>
+
+  <!-- CENTER: VIEWPORT -->
+  <main class="flex-1 min-w-0 flex flex-col">
+    <div class="flex items-center gap-1 px-3 pt-2.5 pb-2 surface flex-wrap" style="border-width:0 0 1px 0; border-radius:0">
+      <select id="building-type-select" class="room-select"></select>
+      <div id="house-tab" class="tab-btn" data-active="true">🏠 Whole House</div>
+      <select id="room-select" class="room-select"></select>
+      <div id="room-subtabs" class="flex items-center gap-1 hidden">
+        <div id="tab-2d" class="tab-btn" data-active="true">2D Plan</div>
+        <div id="tab-3d" class="tab-btn">3D Viewport</div>
+        <div id="tab-walk" class="tab-btn">Walkthrough</div>
+      </div>
+      <div id="scope-toggle" class="flex items-center gap-1 hidden">
+        <div id="scope-room" class="chip" data-active="true">This room</div>
+        <div id="scope-building" class="chip" data-active="false">Whole building</div>
+        <div id="scope-exterior" class="chip" data-active="false">Outside</div>
+      </div>
+      <div class="flex-1"></div>
+      <button id="qr-btn" class="btn btn-ghost text-[.75rem]">📲 QR</button>
+      <button id="ar-btn" class="btn btn-ghost text-[.75rem]">📱 AR</button>
+      <button id="vr-btn" class="btn btn-ghost text-[.75rem]">🥽 VR</button>
+      <button id="ai-designer-btn" class="btn btn-primary text-[.75rem]">✦ AI Designer</button>
+    </div>
+
+    <!-- WHOLE BUILDING OVERVIEW -->
+    <div id="view-house" class="flex-1 overflow-y-auto scrollbar-thin p-4">
+      <div class="surface rounded-xl p-4 mb-4">
+        <div class="flex flex-wrap items-end justify-between gap-3 mb-2">
+          <div>
+            <div class="font-display text-xl leading-none" id="house-total">$0</div>
+            <div class="text-[.68rem] font-mono mt-1" style="color:var(--ink-soft)">edit budget in the panel →</div>
+          </div>
+          <div class="flex gap-1.5 flex-wrap">
+            <button id="house-3d-btn" class="btn text-xs">🏙 View in 3D</button>
+            <button id="house-walk-btn" class="btn text-xs">🚶 Walk the Building</button>
+            <button id="house-exterior-btn" class="btn text-xs">🏡 Outside View</button>
+            <button id="report-btn" class="btn text-xs">🖨 Report</button>
+          </div>
+        </div>
+        <div class="h-1.5 rounded-full overflow-hidden" style="background:var(--line-soft)">
+          <div id="house-bar" class="h-full" style="width:0%; background:var(--blue); transition:width .3s ease"></div>
+        </div>
+      </div>
+      <div id="house-kpis" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4"></div>
+      <div id="house-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- 2D VIEW -->
+    <div id="view-2d" class="flex-1 relative min-h-[26rem] hidden">
+      <div id="plan-wrap" class="absolute inset-0"></div>
+      <div class="absolute top-3 left-3 right-3 flex flex-wrap items-center gap-2 pointer-events-none">
+        <div class="surface rounded-lg px-3 py-1.5 flex items-center gap-2 pointer-events-auto">
+          <span class="text-[.7rem] font-mono" style="color:var(--ink-soft)">Room</span>
+          <input id="room-w" type="number" min="150" max="900" step="10" class="w-16 font-mono text-xs py-1"/>
+          <span class="text-xs" style="color:var(--ink-soft)">×</span>
+          <input id="room-d" type="number" min="150" max="900" step="10" class="w-16 font-mono text-xs py-1"/>
+          <span class="text-[.68rem] font-mono" style="color:var(--ink-soft)">cm</span>
+        </div>
+        <div class="surface rounded-lg px-1.5 py-1.5 flex items-center gap-1 pointer-events-auto">
+          <button id="undo-btn" class="btn btn-ghost text-xs" title="Undo (Ctrl+Z)">↶</button>
+          <button id="redo-btn" class="btn btn-ghost text-xs" title="Redo (Ctrl+Y)">↷</button>
+          <button id="dup-btn" class="btn btn-ghost text-xs" title="Duplicate selected (Ctrl+D)">⧉ Copy</button>
+          <div id="snap-chip" class="chip" data-active="false" title="Snap items to a 10 cm grid">Snap</div>
+        </div>
+        <div id="selected-toolbar" class="surface rounded-lg px-2 py-1.5 items-center gap-1.5 hidden pointer-events-auto">
+          <span id="selected-label" class="text-xs font-semibold px-1.5"></span>
+          <button id="rotate-btn" class="btn btn-ghost text-xs" title="Rotate 45°">⟳ Rotate</button>
+          <button id="delete-btn" class="btn btn-ghost btn-danger text-xs" title="Remove item">✕ Remove</button>
+        </div>
+      </div>
+      <div class="absolute bottom-3 left-3 surface rounded-lg px-3 py-1.5 text-[.68rem] font-mono" style="color:var(--ink-soft)">
+        1 square = 20 cm · drag to move · click then <span class="kbd">R</span> to rotate
+      </div>
+    </div>
+
+    <!-- 3D VIEW -->
+    <div id="view-3d" class="flex-1 relative min-h-[26rem] hidden">
+      <div id="three-canvas" class="absolute inset-0"></div>
+      <div class="absolute top-3 right-3 flex flex-col items-end gap-2">
+        <div class="surface rounded-lg px-1.5 py-1.5 flex items-center gap-1">
+          <button id="night-btn" class="btn btn-ghost text-xs" title="Day / night lighting">🌙 Night</button>
+          <button id="finish-btn" class="btn btn-ghost text-xs" title="Floor &amp; wall finishes">🎨 Finish</button>
+          <button id="snap3d-btn" class="btn btn-ghost text-xs" title="Save a PNG picture of this view">📷 Photo</button>
+        </div>
+        <div id="finish-pop" class="surface rounded-lg p-3 hidden w-56">
+          <label class="text-[.68rem] font-semibold" style="color:var(--ink-soft)">Floor</label>
+          <select id="finish-floor" class="mb-2 mt-1 text-xs"></select>
+          <label class="text-[.68rem] font-semibold" style="color:var(--ink-soft)">Wall tint</label>
+          <select id="finish-wall" class="mt-1 text-xs"></select>
+        </div>
+      </div>
+      <div class="absolute bottom-3 left-3 surface rounded-lg px-3 py-1.5 text-[.68rem] font-mono" style="color:var(--ink-soft)">drag to orbit · scroll to zoom</div>
+    </div>
+
+    <!-- WALKTHROUGH VIEW -->
+    <div id="view-walk" class="flex-1 relative min-h-[26rem] hidden">
+      <div id="walk-canvas" class="absolute inset-0"></div>
+      <div class="absolute bottom-3 left-3 surface rounded-lg px-3 py-1.5 text-[.68rem] font-mono" style="color:var(--ink-soft)">
+        <span class="kbd">W A S D</span> to walk · drag to look around · tap 🥽 VR above for a headset
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="surface lg:w-[21rem] shrink-0 flex flex-col overflow-y-auto scrollbar-thin" style="border-width:0 0 0 1px; max-height: calc(100vh - 52px);">
+
+    <section class="p-4" style="border-bottom:1px solid var(--line)">
+      <h2 class="font-display text-sm tracking-tight mb-2.5" id="budget-title">Budget — Whole House</h2>
+      <div class="flex items-center gap-2 mb-2.5 flex-wrap">
+        <span class="text-xs" style="color:var(--ink-soft)">Min</span>
+        <input id="min-budget" type="number" min="0" step="50" class="w-20 font-mono text-xs py-1"/>
+        <span class="text-xs" style="color:var(--ink-soft)">Max</span>
+        <input id="max-budget" type="number" min="0" step="50" class="w-20 font-mono text-xs py-1"/>
+      </div>
+      <div class="flex items-end justify-between mb-1.5">
+        <div>
+          <div class="text-[1.55rem] font-display leading-none" id="budget-total">$0</div>
+          <div class="text-[.68rem] font-mono mt-0.5" style="color:var(--ink-soft)" id="budget-sub">0 items placed</div>
+        </div>
+        <div id="budget-status" class="text-xs font-semibold px-2 py-1 rounded-full"></div>
+      </div>
+      <div class="h-1.5 rounded-full overflow-hidden mt-2" style="background:var(--line-soft)">
+        <div id="budget-bar" class="h-full" style="width:0%; background:var(--blue); transition: width .3s ease, background .3s ease"></div>
+      </div>
+      <div id="budget-suggestions" class="mt-3 space-y-1.5"></div>
+      <button id="checkout-btn" class="btn btn-primary w-full justify-center mt-3">Review &amp; Checkout</button>
+    </section>
+
+    <section class="p-4" style="border-bottom:1px solid var(--line)">
+      <div class="flex items-center justify-between mb-2.5">
+        <h2 class="font-display text-sm tracking-tight" id="ergo-title">Ergonomic Inspector — Whole House</h2>
+      </div>
+      <button id="audit-btn" class="btn w-full justify-center mb-3">Run Ergonomic Audit</button>
+      <div id="audit-results" class="hidden">
+        <div class="flex items-center gap-3 mb-3">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="24" fill="none" stroke="var(--line-soft)" stroke-width="6"/>
+            <circle id="score-arc" class="score-ring" cx="28" cy="28" r="24" fill="none" stroke="var(--blue)" stroke-width="6" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="150.8"/>
+          </svg>
+          <div>
+            <div class="font-display text-xl leading-none" id="score-text">0%</div>
+            <div class="text-[.68rem] font-mono" style="color:var(--ink-soft)">safety &amp; comfort score</div>
+          </div>
+        </div>
+        <ul id="audit-list" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin"></ul>
+      </div>
+      <p id="audit-empty" class="text-xs" style="color:var(--ink-soft)">Run an audit to check pathway clearance, TV viewing distance, window access, and lighting.</p>
+      <div class="mt-4 pt-4" style="border-top:1px dashed var(--line)">
+        <p class="text-xs mb-2" style="color:var(--ink-soft)">Want a second opinion, or think something's wrong?</p>
+        <button id="open-designers-btn" class="btn w-full justify-center text-xs">🧑‍🎨 Raise it with a nearby designer</button>
+      </div>
+    </section>
+
+    <section class="p-4">
+      <h2 class="font-display text-sm tracking-tight mb-2.5">Project</h2>
+      <div class="flex gap-1.5 mb-2">
+        <input id="project-name" type="text" placeholder="My design" class="text-xs"/>
+        <button id="save-btn" class="btn text-xs shrink-0">Save</button>
+      </div>
+      <select id="load-select" class="text-xs mb-2"><option value="">Load a saved design…</option></select>
+      <button id="clear-btn" class="btn btn-ghost btn-danger w-full justify-center text-xs">Clear whole house</button>
+      <div class="mt-4 pt-4 flex items-center justify-between gap-2" style="border-top:1px dashed var(--line)">
+        <span id="rating-summary" class="text-xs" style="color:var(--ink-soft)">No ratings yet</span>
+        <button id="open-rating-btn" class="btn btn-ghost text-xs shrink-0">⭐ Rate this app</button>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<!-- ============ AI DESIGNER DIALOG ============ -->
+<dialog id="ai-dialog">
+  <div class="surface rounded-2xl p-6 w-[26rem] max-w-[90vw]">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="font-display text-lg">AI Designer</h2>
+      <button class="btn btn-ghost" onclick="document.getElementById('ai-dialog').close()">✕</button>
+    </div>
+    <p class="text-xs mb-3" style="color:var(--ink-soft)">Generates a fully furnished, collision-free layout for your style and budget.</p>
+    <div class="flex gap-1.5 mb-4">
+      <div id="ai-scope-room" class="chip" data-active="true">This room</div>
+      <div id="ai-scope-house" class="chip" data-active="false">Whole building</div>
+    </div>
+    <div class="space-y-3">
+      <div id="ai-room-field">
+        <label class="text-xs font-semibold" style="color:var(--ink-soft)">Room</label>
+        <select id="ai-room" class="mt-1"></select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:var(--ink-soft)">Style</label>
+        <select id="ai-style" class="mt-1">
+          <option value="scandinavian">Scandinavian</option>
+          <option value="modern-minimalist">Modern Minimalist</option>
+          <option value="industrial">Industrial</option>
+          <option value="luxury">Luxury</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:var(--ink-soft)">Minimum budget</label>
+        <input id="ai-budget-min" type="number" min="0" step="50" class="mt-1"/>
+      </div>
+      <div>
+        <label class="text-xs font-semibold" id="ai-budget-label" style="color:var(--ink-soft)">Target budget ceiling</label>
+        <input id="ai-budget" type="number" min="0" step="50" class="mt-1"/>
+      </div>
+    </div>
+    <p id="ai-note" class="text-xs mt-3 hidden" style="color:var(--amber)"></p>
+    <button id="ai-generate-btn" class="btn btn-primary w-full justify-center mt-4">Generate layout</button>
+  </div>
+</dialog>
+
+<!-- ============ CHECKOUT DIALOG ============ -->
+<dialog id="checkout-dialog">
+  <div class="surface rounded-2xl p-6 w-[26rem] max-w-[90vw]">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display text-lg">Order summary</h2>
+      <button class="btn btn-ghost" onclick="document.getElementById('checkout-dialog').close()">✕</button>
+    </div>
+    <ul id="checkout-list" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin mb-3"></ul>
+    <div class="flex items-center justify-between font-display text-lg mb-4 pt-2" style="border-top:1px solid var(--line)">
+      <span>Total</span><span id="checkout-total">$0</span>
+    </div>
+    <button id="checkout-confirm" class="btn btn-primary w-full justify-center">Confirm (Demo)</button>
+    <p class="text-[.68rem] text-center mt-2.5" style="color:var(--ink-soft)">This is a demo summary — no payment is processed and no order is placed.</p>
+  </div>
+</dialog>
+
+<!-- ============ AR / VR DIALOG ============ -->
+<dialog id="help-dialog" class="surface rounded-xl p-5" style="max-width:30rem;width:92vw;color:var(--ink)">
+  <h3 class="font-display text-base mb-2">Help &amp; shortcuts</h3>
+  <ul class="text-sm space-y-1.5" style="color:var(--ink-soft)">
+    <li><b>Drag</b> an item to move it; red means it collides.</li>
+    <li><span class="kbd">R</span> rotate · <span class="kbd">Del</span> remove · <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> / <span class="kbd">Y</span> undo / redo</li>
+    <li>Set your <b>min and max budget</b> in the right panel before designing.</li>
+    <li>Add <b>stairs</b> and the outside view gains an upper storey.</li>
+    <li>Use <b>QR / AR / VR</b> to scan the design onto a phone (host on https for camera AR).</li>
+    <li>Use <b>Report</b> for a printable summary of your design.</li>
+  </ul>
+  <button id="help-close" class="btn mt-4">Got it</button>
+</dialog>
+<dialog id="xr-dialog">
+  <div class="surface rounded-2xl p-6 w-[30rem] max-w-[94vw] max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-2">
+      <h2 id="xr-title" class="font-display text-lg">📲 Scan to see your design on your phone</h2>
+      <button class="btn btn-ghost" onclick="document.getElementById('xr-dialog').close()">✕</button>
+    </div>
+    <div id="share-modes" class="flex flex-wrap gap-1.5 mb-3">
+      <div class="chip" data-sm="outside" data-active="true">🏡 Outside</div>
+      <div class="chip" data-sm="inside" data-active="false">🛋 Inside</div>
+      <div class="chip" data-sm="walk" data-active="false">🚶 Walk</div>
+      <div class="chip" data-sm="ar" data-active="false">📱 AR</div>
+      <div class="chip" data-sm="vr" data-active="false">🥽 VR</div>
+    </div>
+    <canvas id="xr-qr" width="230" height="230" class="mx-auto rounded-lg" style="background:#fff;width:230px;height:230px"></canvas>
+    <p id="share-warn" class="hidden text-xs rounded-lg p-3 my-2" style="background:var(--line-soft);color:var(--ink)"></p>
+    <p id="xr-message" class="text-xs text-center my-2" style="color:var(--ink-soft)"></p>
+    <label class="text-[.7rem] font-mono" style="color:var(--ink-soft)">Your hosted website address</label>
+    <input id="share-site" type="url" placeholder="https://your-site.netlify.app/" class="mb-2 mt-1"/>
+    <div class="flex items-center gap-2 mb-3">
+      <div id="xr-link-text" class="text-[.65rem] font-mono break-all flex-1 rounded-lg px-2.5 py-2 max-h-16 overflow-y-auto" style="background:var(--line-soft);color:var(--ink)"></div>
+      <button id="xr-copy-link" class="btn text-xs shrink-0">Copy</button>
+    </div>
+    <p class="text-[.68rem] font-semibold mb-1.5" style="color:var(--ink-soft)">Quick codes — scan any one directly:</p>
+    <div class="flex justify-between gap-2 mb-3 text-center">
+      <div><canvas id="mq-outside" class="rounded-md mx-auto" style="width:96px;height:96px;background:#fff"></canvas><div class="text-[.65rem] mt-1">🏡 Outside</div></div>
+      <div><canvas id="mq-ar" class="rounded-md mx-auto" style="width:96px;height:96px;background:#fff"></canvas><div class="text-[.65rem] mt-1">📱 AR</div></div>
+      <div><canvas id="mq-vr" class="rounded-md mx-auto" style="width:96px;height:96px;background:#fff"></canvas><div class="text-[.65rem] mt-1">🥽 VR</div></div>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button id="share-open-here" class="btn btn-primary text-xs flex-1 justify-center">Open viewer here</button>
+      <button id="share-download" class="btn text-xs flex-1 justify-center">Download QR</button>
+    </div>
+    <p class="text-[.68rem] mt-3 leading-relaxed" style="color:var(--ink-soft)">The whole design is stored inside the link, so no server is needed. AR needs the phone camera, which browsers only allow on a real <b>https</b> site — host this project on Netlify or GitHub Pages, paste its address above, then scan.</p>
+  </div>
+</dialog>
+
+<!-- ============ DESIGNER DIALOG ============ -->
+<dialog id="designer-dialog">
+  <div class="surface rounded-2xl p-6 w-[30rem] max-w-[92vw] max-h-[85vh] overflow-y-auto scrollbar-thin">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="font-display text-lg">Raise it with a designer</h2>
+      <button class="btn btn-ghost" onclick="document.getElementById('designer-dialog').close()">✕</button>
+    </div>
+    <p class="text-xs mb-4" style="color:var(--ink-soft)">Get a professional's second opinion — attach a photo of your layout if it helps explain what you'd like checked.</p>
+    <select id="designer-city" class="mb-4"></select>
+    <div id="designer-list" class="space-y-3"></div>
+    <p class="text-[.68rem] text-center mt-4" style="color:var(--ink-soft)">Demo directory — requests are stored in this browser only, not sent to real studios.</p>
+  </div>
+</dialog>
+
+<!-- ============ RATING DIALOG ============ -->
+<dialog id="rating-dialog">
+  <div class="surface rounded-2xl p-6 w-[22rem] max-w-[90vw]">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display text-lg">Rate InterioX</h2>
+      <button class="btn btn-ghost" onclick="document.getElementById('rating-dialog').close()">✕</button>
+    </div>
+    <div id="star-picker" class="flex gap-1 mb-3 text-3xl"></div>
+    <textarea id="rating-comment" rows="3" placeholder="What did you think? (optional)" class="mb-3"></textarea>
+    <button id="rating-submit" class="btn btn-primary w-full justify-center">Submit rating</button>
+  </div>
+</dialog>
+
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
