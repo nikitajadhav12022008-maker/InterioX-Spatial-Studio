@@ -1,0 +1,8 @@
+[build]
+  publish = "frontend"
+
+# Browsers only expose the camera / motion sensors / WebXR to pages that allow them.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Permissions-Policy = "camera=(self), gyroscope=(self), accelerometer=(self), magnetometer=(self), xr-spatial-tracking=(self), fullscreen=(self)"
